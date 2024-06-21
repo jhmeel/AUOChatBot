@@ -5,31 +5,64 @@ import Message from "./Message";
 import { pipeline } from "@xenova/transformers";
 import localforage from "localforage";
 import Modal from "react-modal";
+import { qa } from "./q";
+import { findAnswer } from "./lookUp";
 
-const ChatContainer = styled.div`
-  width: 100%;
+const Container = styled.div`
+  max-width: 600px;
+  margin: 0 auto;
+  font-family: Arial, sans-serif;
+  background-color: #f5f5f5;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+
+  @media (max-width: 600px) {
+    width: 100%;
+  }
+`;
+
+const Header = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 15px;
+  background-color: white;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+`;
+
+const Logo = styled.div`
+  background-color: #f0f0f0;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  main {
-    position: relative;
-    width: 600px;
-    overflow-y: scroll;
-    min-height: 100vh;
-    margin: 0 auto;
-    padding: 20px;
-    background-color: #fff;
-    border-radius: 10px;
-    box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
-  }
+  margin-right: 10px;
+  font-size: 20px;
+`;
+
+const Title = styled.div`
+  font-size: 18px;
+  font-weight: bold;
+`;
+
+const Subtitle = styled.div`
+  font-size: 14px;
+  color: #888;
+`;
+
+const ChatArea = styled.div`
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 15px;
 `;
 
 const InputContainer = styled.div`
   display: flex;
-  position: fixed;
-  bottom: 5px;
-  transform: translateX(50%);
-  margin-top: 10px;
+  padding: 10px;
+  background-color: white;
 `;
 
 const Input = styled.input`
@@ -81,13 +114,53 @@ const Avatar = styled.div`
   right: 10px;
   display: flex;
   align-items: center;
-  background-color: #96a2b0;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 20px;
-  font-weight: bold;
+  color: #000000;
+  padding: 2px 4px;
+  font-size: 12px;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  border-radius: 10px;
+  text-align: center;
+  border: 2px dashed #cfd15e;
   cursor: pointer;
 `;
+
+const OptionsArea = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 10px;
+  background-color: white;
+`;
+
+const OptionButton = styled.button`
+  background-color: white;
+  border: 1px solid #007bff;
+  border-radius: 20px;
+  color: #007bff;
+  padding: 8px 12px;
+  margin: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-size: 14px;
+  transition: all 0.2s;
+
+  &:hover {
+    background-color: #007bff;
+    color: white;
+  }
+`;
+
+const options = [
+  { icon: "🏠", text: "Accomodation" },
+  { icon: "🍲", text: "Food and drinks" },
+  { icon: "🏅", text: "Sport life" },
+  { icon: "📚", text: "Library" },
+  { icon: "🗺️", text: "Map" },
+  { icon: "🏥", text: "Health care" },
+  { icon: "🎉", text: "Evening events" },
+];
 
 const App: React.FC = () => {
   const [messages, setMessages] = useState<
@@ -136,14 +209,6 @@ const App: React.FC = () => {
   const generateResponse = async (query: string) => {
     const storedData = await localforage.getItem<any>("embeddings");
 
-    if (!storedData) {
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { text: "I don't have an idea about that.", isLoading: false },
-      ]);
-      return;
-    }
-
     try {
       const model_name = "deepset/roberta-base-squad2";
       const nlp = await pipeline("question-answering");
@@ -153,11 +218,7 @@ const App: React.FC = () => {
         context: storedData,
       };
 
-      const res =
-        (await nlp(QA_input.question, QA_input.context)) ||
-        "I don't have an idea about that.";
-
-      console.log(res);
+      const res = await nlp(QA_input.question, QA_input.context);
 
       const updatedBotMessage = {
         text: res,
@@ -174,17 +235,32 @@ const App: React.FC = () => {
       setMessages((prevMessages) => [
         ...prevMessages,
         {
-          text: "I'm having trouble generating a response right now.",
+          text: findAnswer(query),
           isLoading: false,
         },
       ]);
     }
   };
 
+  const handleOptionClick = (option: string) => {
+    setUserInput(option);
+    handleSend();
+  };
+
   return (
-    <ChatContainer>
-      <main>
+    <Container>
+      <Header>
+        <div>
+          <Logo>🎓</Logo>
+          <div>
+            <Title>Student Support</Title>
+            <Subtitle>Online</Subtitle>
+          </div>
+        </div>
+
         <FileUpload onFileSelect={handleFileSelect} />
+      </Header>
+      <ChatArea>
         {messages.map((msg, index) => (
           <Message
             key={index}
@@ -193,47 +269,61 @@ const App: React.FC = () => {
             isUser={msg.isUser}
           />
         ))}
-        <InputContainer>
-          <Input
-            type="text"
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            placeholder="Ask a question..."
-          />
-          <Button
-            isLoading={messages.some((msg) => msg.isLoading)}
-            disabled={messages.some((msg) => msg.isLoading)}
-            onClick={handleSend}
-          >
-            Send
-          </Button>
-        </InputContainer>
-
-        {username && (
-          <Avatar onClick={() => setShowUsernameModal(true)}>{username}</Avatar>
-        )}
-
-        <UsernameModal
-          isOpen={showUsernameModal}
-          onRequestClose={() => setShowUsernameModal(false)}
-          ariaHideApp={false}
+      </ChatArea>
+      {messages.length === 0 && (
+        <OptionsArea>
+          {options.map((option, index) => (
+            <OptionButton
+              key={index}
+              onClick={() => handleOptionClick(option.text)}
+            >
+              {option.icon} {option.text}
+            </OptionButton>
+          ))}
+        </OptionsArea>
+      )}
+      <InputContainer>
+        <Input
+          type="text"
+          autoFocus
+          value={userInput}
+          onChange={(e) => setUserInput(e.target.value)}
+          placeholder="Ask a question..."
+        />
+        <Button
+          isLoading={messages.some((msg) => msg.isLoading)}
+          disabled={messages.some((msg) => msg.isLoading)}
+          onClick={handleSend}
         >
-          <h3>Enter your username</h3>
-          <UsernameInput
-            type="text"
-            value={username || ""}
-            onChange={handleUsernameChange}
-            placeholder="Username"
-          />
-          <button
-            style={{ background: "#007bff", color: "#fff", fontSize: "12px" }}
-            onClick={handleUsernameSubmit}
-          >
-            Proceed
-          </button>
-        </UsernameModal>
-      </main>
-    </ChatContainer>
+          Send
+        </Button>
+      </InputContainer>
+
+      {username && (
+        <Avatar onClick={() => setShowUsernameModal(true)}>{username}</Avatar>
+      )}
+
+      <UsernameModal
+        isOpen={showUsernameModal}
+        onRequestClose={() => setShowUsernameModal(false)}
+        ariaHideApp={false}
+      >
+        <h3>Enter your username</h3>
+        <UsernameInput
+          type="text"
+          autoFocus
+          value={username || ""}
+          onChange={handleUsernameChange}
+          placeholder="Username"
+        />
+        <button
+          style={{ background: "#007bff", color: "#fff", fontSize: "12px" }}
+          onClick={handleUsernameSubmit}
+        >
+          Proceed
+        </button>
+      </UsernameModal>
+    </Container>
   );
 };
 

@@ -3,6 +3,8 @@ import React, { useEffect, useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { FaRegCopy, FaRegHeart, FaHeart } from "react-icons/fa";
 import {toast} from 'react-hot-toast'
+import { readTextOut } from "./lookUp";
+import { RiSpeakLine } from "react-icons/ri";
 const blink = keyframes`
   0%, 100% { opacity: 1; }
   50% { opacity: 0; }
@@ -16,7 +18,7 @@ const Cursor = styled.span`
 const IconTray = styled.div`
   display: flex;
   justify-content: flex-end;
-  gap: 0.5rem;
+  gap: 0.3rem;
   margin-top: 0.5rem;
 `;
 
@@ -24,7 +26,7 @@ const IconButton = styled.button`
   background: none;
   border: none;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 16px;
   color: #666;
   transition: color 0.2s;
   outline: none;
@@ -88,6 +90,9 @@ const TypingEffect: React.FC<TypingEffectProps> = ({ text, isUser }) => {
           </IconButton>
           <IconButton onClick={handleCopy}>
             <FaRegCopy />
+          </IconButton>
+          <IconButton onClick={()=> readTextOut(displayedText)}>
+          <RiSpeakLine  />
           </IconButton>
         </IconTray>
       )}
